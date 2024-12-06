@@ -78,18 +78,38 @@ namespace Ascon
             P_LinearLayer(state);
         }
 
-        void PadMessage(ulong[] message, int messageLength)
+        void Pad(ulong[] data, int dataLength)
         {
-            if (messageLength % 128 == 0)
+            if (dataLength % 128 == 0)
                 return;
             else
             {
-                int paddingLength = 128-(messageLength % 128);
-                ulong newLastBlock = message[message.Length - 1] >> paddingLength;
-                newLastBlock <<= 1;
-                newLastBlock ^= 0x1;
-                newLastBlock<<=(paddingLength-1);
-                message[message.Length - 1] = newLastBlock;
+                int paddingLength = 128-(dataLength % 128);
+                if(paddingLength==64)
+                {
+                    ulong newLastBlock = 0x8000000000000000L;
+                    data=data.Append(newLastBlock).ToArray();
+                }
+                else if (paddingLength > 64)
+                {
+                    int tempPaddingLength = 64-(dataLength % 64);
+                    ulong paddedBlock = data[data.Length - 1] >> tempPaddingLength;
+                    paddedBlock <<= 1;
+                    paddedBlock ^= 0x1;
+                    paddedBlock <<= (tempPaddingLength - 1);
+                    data[data.Length - 1] = paddedBlock;
+
+                    ulong newLastBlock = 0x0L;
+                    data = data.Append(newLastBlock).ToArray();
+                }
+                else
+                {
+                    ulong paddedBlock = data[data.Length - 1] >> paddingLength;
+                    paddedBlock <<= 1;
+                    paddedBlock ^= 0x1;
+                    paddedBlock <<= (paddingLength - 1);
+                    data[data.Length - 1] = paddedBlock;
+                }
             }
         }
 
@@ -101,40 +121,38 @@ namespace Ascon
             state[3] = nonce[0];
             state[4] = nonce[1];
 
-            for (int i = 0; i < AsconConstants.NumberOfRounds_pa; i++)
+            for (int i = 0; i < AsconConstants.NumberOfRounds_Pa; i++)
             {
-                Permutation(state, i, AsconConstants.NumberOfRounds_pa);
+                Permutation(state, i, AsconConstants.NumberOfRounds_Pa);
             }
-            //XOR the Key to the state as S=S ^ (0..00|K) 
             state[3] ^= key[0];
             state[4] ^= key[1];
         }
 
         void ProcessAuthanticatedData(ulong[] state, ulong[] assocData)
-        {//TODO: AssocData uzunlupu 2nin tam katı değilse durumu eklenecek
+        {
             for (int j = 0; j < assocData.Length; j += 2)
             {
                 state[0] ^= assocData[j];
                 state[1] ^= assocData[j + 1];
-                for (int i = 0; i < AsconConstants.NumberOfRounds_pb_Ascon128; i++)
-                    Permutation(state, i, AsconConstants.NumberOfRounds_pa);
+                for (int i = 0; i < AsconConstants.NumberOfRounds_Pb; i++)
+                    Permutation(state, i, AsconConstants.NumberOfRounds_Pb);
             }
             state[4] ^= 0x1L;
         }
 
-        List<ulong> ProcessMessage(ulong[] state, ulong[] message)
+        ulong[] ProcessMessage(ulong[] state, ulong[] message)
         {
-            List<ulong> cText = new List<ulong>();
-
+            ulong[] cText = new ulong[message.Length];
             for (int j = 0; j < message.Length; j += 2)
             {
                 state[0] ^= message[2 * j];
-                state[1] ^= message[(2 * j) + 1];
-                cText.Add(state[0]);
-                cText.Add(state[1]);
+                state[1] ^= message[2 * j + 1];
+                cText[2 * j] = state[0];
+                cText[2 * j + 1] = state[1];
 
-                for (int i = 0; i < AsconConstants.NumberOfRounds_pb_Ascon128; i++)
-                    Permutation(state, i, AsconConstants.NumberOfRounds_pb_Ascon128);
+                for (int i = 0; i < AsconConstants.NumberOfRounds_Pb; i++)
+                    Permutation(state, i, AsconConstants.NumberOfRounds_Pb);
             }
             return cText;
         }
@@ -145,8 +163,8 @@ namespace Ascon
             state[2] ^= key[0];
             state[3] ^= key[1];
 
-            for (int i = 0; i < AsconConstants.NumberOfRounds_pa; i++)
-                Permutation(state, i, AsconConstants.NumberOfRounds_pa);
+            for (int i = 0; i < AsconConstants.NumberOfRounds_Pa; i++)
+                Permutation(state, i, AsconConstants.NumberOfRounds_Pa);
 
             state[3] ^= key[0];
             state[4] ^= key[1];
@@ -154,21 +172,21 @@ namespace Ascon
             return new ulong[] { state[3], state[4] };
         }
 
-        public ulong[] Encrypt(ulong[] message, int messageLength, ulong[] key, ulong[] nonce, ulong[] associatedData = null, ulong IV = 0x0L)
+        public (ulong[], ulong[]) Encrypt(ulong[] message, int messageLength, ulong[] key, ulong[] nonce, ulong[] associatedData = null, int associatedDataLength=0)
         {
-            if (IV == 0x0L)
-                IV = 0x00001000808c0001;
-
             ulong[] state = new ulong[] { 0x0L, 0x0L, 0x0L, 0x0L, 0x0L };
-            PadMessage(message, messageLength);
-            Initialization(state, key, IV, nonce);
-            ProcessAuthanticatedData(state, associatedData);
-            var cipherText=ProcessMessage(state, message);
+            Pad(message, messageLength);
+            Initialization(state, key, AsconConstants.IV, nonce);
+            if (associatedDataLength > 0)
+            {
+                Pad(associatedData, associatedDataLength);
+                ProcessAuthanticatedData(state, associatedData);
+            }
+            var cipherText = ProcessMessage(state, message);
+            var tag = FinalizationAndTagGeneration(state, key);
             Console.WriteLine("\n");
             Console.WriteLine(CommonOperations.PrintState(state));
-
-            return state;
-
+            return (cipherText,tag);
         }
     }
 }
