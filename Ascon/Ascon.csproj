@@ -42,7 +42,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsconConstants.cs" />
-    <Compile Include="Ascon.cs" />
+    <Compile Include="AsconOperations.cs" />
+    <Compile Include="Ascon_AEAD128.cs" />
     <Compile Include="CommonOperations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
