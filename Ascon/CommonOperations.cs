@@ -44,5 +44,18 @@ namespace Ascon
             }
             return data & mask;
         }
+                public static ulong[] GetBits(ulong[] data, int dataLength)
+        {
+            int dataBlockLength = (int)Math.Ceiling(dataLength / 64.0);
+            data = data.Take(dataBlockLength).ToArray();
+
+            if (dataLength % 64 != 0)
+            {
+                var exessBits = 64 - (dataLength % 64);
+                var mask = ulong.MaxValue - (((ulong)0x1 << exessBits) - 1) ;
+                data[data.Length - 1] = data[data.Length - 1] & mask;
+            }
+            return data;
+        }
     }
 }
