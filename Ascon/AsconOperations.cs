@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -134,6 +134,16 @@ namespace Ascon
                     Permutation(state, i, AsconConstants.NumberOfRounds_Pb);
             }
             state[4] ^= 0x1L;
+        }
+
+        internal static void AbsorbMessage(ulong[] state, ulong[] message)
+        {
+            for (int j = 0; j < message.Length; j++)
+            {
+                state[0] ^= message[j];
+                for (int i = 0; i < AsconConstants.NumberOfRounds_Pa; i++)
+                    Permutation(state, i, AsconConstants.NumberOfRounds_Pa);
+            }
         }
         internal static ulong[] FinalizationAndTagGeneration(ulong[] state, ulong[] key)
         {
