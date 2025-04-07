@@ -12,6 +12,7 @@ namespace Ascon
         public const ulong AEAD_IV = 0x00001000808c0001;
         public const ulong HASH_IV = 0x0000080100cc0002;
         public const ulong XOF_IV = 0x0000080000cc0003;
+        public const ulong CXOF_IV = 0x0000080000cc0004;
 
         public const int NumberOfRounds_Pa= 12;
         public const int NumberOfRounds_Pb = 8;
