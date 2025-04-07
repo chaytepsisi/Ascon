@@ -110,7 +110,7 @@ namespace Ascon
         {
             ulong[] state = new ulong[5];
             dataLength=messageLength;
-            message=AsconOperations.Pad(message, messageLength);
+            message=AsconOperations.Pad(message, dataLength);
             AsconOperations.Initialization(state, key, AsconConstants.IV, nonce);
             if (associatedDataLength > 0)
             {
@@ -119,6 +119,7 @@ namespace Ascon
             }
             var cipherText = ProcessMessage(state, message);
             var tag = AsconOperations.FinalizationAndTagGeneration(state, key);
+             cipherText= Ascon.CommonOperations.GetBits(cipherText, dataLength);
             return (cipherText, tag);
         }
 
@@ -135,6 +136,7 @@ namespace Ascon
             
             var plainText = ProcessCipherText(state, cipherText);
             var producedTag = AsconOperations.FinalizationAndTagGeneration(state, key);
+            plainText = Ascon.CommonOperations.GetBits(plainText, dataLength);
             return (plainText, producedTag);
         }
     }
